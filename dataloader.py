@@ -5,11 +5,16 @@ from PIL import Image
 import pandas as pd
 from transformers import AutoTokenizer
 import numpy as np
+import re
+from io import StringIO
 
 class MultiModalDataset(Dataset):
     #定义元数据
     def __init__(self, csv_file, img_dir, num_classes=19, tokenizer_name='distilbert-base-uncased', mode='train', max_length=32):
-        self.df = pd.read_csv(csv_file)
+        # 健壮读取csv，处理caption中的英文引号
+        with open(csv_file) as file:
+            lines = [re.sub(r'([^,])"(\s*[^\n])', r'\1/"\2', line) for line in file]
+            self.df = pd.read_csv(StringIO(''.join(lines)), escapechar="/")
         self.img_dir = img_dir
         self.mode = mode
         self.num_classes = num_classes
