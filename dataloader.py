@@ -10,7 +10,7 @@ from io import StringIO
 
 class MultiModalDataset(Dataset):
     #定义元数据
-    def __init__(self, csv_file, img_dir, num_classes=19, tokenizer_name='distilbert-base-uncased', mode='train', max_length=32):
+    def __init__(self, csv_file, img_dir, num_classes=18, tokenizer_name='distilbert-base-uncased', mode='train', max_length=32):
         # 健壮读取csv，处理caption中的英文引号
         with open(csv_file) as file:
             lines = [re.sub(r'([^,])"(\s*[^\n])', r'\1/"\2', line) for line in file]
@@ -29,11 +29,7 @@ class MultiModalDataset(Dataset):
 
     def __getitem__(self, idx):
         row = self.df.iloc[idx]
-        img_path = os.path.join(self.img_dir, str(row['ImageID']))
-        image = Image.open(img_path).convert('RGB')
-        # 简单resize+ToTensor，可根据需要自定义transform
-        image = image.resize((224, 224))
-        image = torch.from_numpy(np.array(image)).permute(2, 0, 1).float() / 255.0
+        # 只做文本
         caption = str(row['Caption'])
         encoding = self.tokenizer(caption, padding='max_length', truncation=True, max_length=self.max_length, return_tensors='pt')
         input_ids = encoding['input_ids'].squeeze(0)
@@ -45,26 +41,56 @@ class MultiModalDataset(Dataset):
                 l = int(l)
                 if l in self.label2idx:
                     multi_hot[self.label2idx[l]] = 1
-            return image, input_ids, attention_mask, multi_hot
+            if self.img_dir is not None:
+                # 需要图片时
+                img_path = os.path.join(self.img_dir, str(row['ImageID']))
+                image = Image.open(img_path).convert('RGB')
+                image = image.resize((224, 224))
+                image = torch.from_numpy(np.array(image)).permute(2, 0, 1).float() / 255.0
+                return image, input_ids, attention_mask, multi_hot
+            else:
+                # 只文本
+                return input_ids, attention_mask, multi_hot
         else:
-            return image, input_ids, attention_mask 
+            if self.img_dir is not None:
+                img_path = os.path.join(self.img_dir, str(row['ImageID']))
+                image = Image.open(img_path).convert('RGB')
+                image = image.resize((224, 224))
+                image = torch.from_numpy(np.array(image)).permute(2, 0, 1).float() / 255.0
+                return image, input_ids, attention_mask
+            else:
+                return input_ids, attention_mask
 
 
-# 训练集
-train_dataset = MultiModalDataset(
-    csv_file='train.csv',
-    img_dir='/home/shuozhang/COMP5329/data',
-    mode='train'
-)
-img, input_ids, attention_mask, multi_hot = train_dataset[0]
-print(img.shape, input_ids.shape, attention_mask.shape, multi_hot)
+"""
+image
+类型：torch.Tensor
+形状：[3, 224, 224]
+内容：一张图片的像素数据，已经被 resize 到 224x224，3个通道（RGB），并归一化到0~1之间。
+用途：作为视觉模型（如MobileNetV2、ResNet等）的输入。
+"""
 
-# 测试集
-test_dataset = MultiModalDataset(
-    csv_file='test.csv',
-    img_dir='/home/shuozhang/COMP5329/data',
-    mode='test'
-)
-img, input_ids, attention_mask = test_dataset[0]
-print(img.shape, input_ids.shape, attention_mask.shape)
+"""
+input_ids
+类型：torch.Tensor
+形状：[max_length]
+内容：caption的tokenized结果，max_length=32。
+用途：作为语言模型（如BERT、RoBERTa等）的输入。
+"""
+
+"""
+attention_mask
+类型：torch.Tensor
+形状：[max_length]
+内容：与input_ids相同，表示哪些token是实际内容，哪些是padding。
+用途：告诉模型哪些位置是实际内容，哪些是padding。
+"""
+
+"""
+multi_hot
+类型：torch.Tensor
+形状：[num_classes]
+内容：一个多热编码向量，表示图片的标签。
+用途：作为分类模型的输出。
+"""
 

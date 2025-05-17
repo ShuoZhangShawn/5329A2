@@ -28,7 +28,7 @@ COMP5329/
 ├── train.csv            # 训练集
 ├── test.csv             # 测试集
 ├── dataloader.py        # 数据加载与预处理
-├── model.py             # 多模态模型结构
+├── model.py             # 模型结构
 ├── train.py             # 训练主流程
 ├── predict.py           # 推理与生成提交文件
 ├── utils.py             # 工具函数（如标签处理、评测等）
