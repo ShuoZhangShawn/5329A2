@@ -14,7 +14,18 @@ class TextClassifier(nn.Module):
         cls_output = outputs.last_hidden_state[:, 0, :]  # [batch, hidden]
         logits = self.classifier(cls_output)
         return logits
-
+    
+    @staticmethod
+    def extractor(out_dim=312, pretrained_model='huawei-noah/TinyBERT_General_4L_312D'):
+        class BertFeatureOnly(nn.Module):
+            def __init__(self, pretrained_model):
+                super().__init__()
+                self.bert = AutoModel.from_pretrained(pretrained_model)
+            def forward(self, input_ids, attention_mask):
+                outputs = self.bert(input_ids=input_ids, attention_mask=attention_mask)
+                cls_output = outputs.last_hidden_state[:, 0, :]
+                return cls_output  # [batch, hidden]
+        return BertFeatureOnly(pretrained_model)
 if __name__ == '__main__':
     model = TextClassifier(num_classes=18)
     print(model)

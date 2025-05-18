@@ -14,3 +14,15 @@ class EfficientNetB0Classifier(nn.Module):
     def forward(self, x):
         return self.backbone(x)
 
+    @staticmethod
+    def extractor(out_dim=1280):
+        # EfficientNet-B0最后的特征维度是1280
+        backbone = efficientnet_b0(weights=EfficientNet_B0_Weights.IMAGENET1K_V1)
+        # 去掉分类头，只保留特征部分
+        features = nn.Sequential(
+            backbone.features,
+            backbone.avgpool,
+            nn.Flatten(),
+        )
+        return features
+
